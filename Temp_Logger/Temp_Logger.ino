@@ -25,8 +25,9 @@ MAX6675 TankTemp(thermoCLK, thermoCS, thermoDO);
 MAX6675 HeatReturn(thermoCLK2, thermoCS2, thermoDO2);
 
 unsigned long previousMillis = 0;
+unsigned long previousMillis1 = 0;
 const long DisplayInterval = 30000;
-const long TempCheckInterval = 900000;
+const long TempCheckInterval = 60000;
 
 float TankTempArray [5];
 byte  arrayIndex = 0;
@@ -147,18 +148,15 @@ void setup() {
 
 void loop() {
   unsigned long currentMillis = millis();
-
+  
   if (currentMillis - previousMillis >= DisplayInterval) {
     previousMillis = currentMillis;
     TempUpdate();
-    {
-    }
-
+    
   }
-  if (currentMillis - previousMillis >= TempCheckInterval) {
-    previousMillis = currentMillis;
+  
+  if (currentMillis - previousMillis1 >= TempCheckInterval) {
+    previousMillis1 = currentMillis;
     TempCheck();
-    {
-    }
   }
   }
