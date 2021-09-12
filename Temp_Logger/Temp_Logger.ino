@@ -1,4 +1,4 @@
-#include "max6675.h"
+#include <max6675.h>
 #include <Wire.h>
 #define DS1307_ADDRESS 0x68
 byte zero = 0x00;
