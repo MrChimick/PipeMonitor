@@ -1,8 +1,8 @@
-#include "max6675.h"
-
+#include <max6675.h>
 #include <Wire.h>
 
 #define DS1307_ADDRESS 0x68
+
 byte zero = 0x00;
 
 int thermoDO = 30;
@@ -15,12 +15,12 @@ int thermoCLK2 = 42;
 
 byte decToBcd(byte val) {
   // Convert normal decimal numbers to binary coded decimal
-  return ((val / 10 * 16) + (val % 10));
+  return ( (val / 10 * 16) + (val % 10) );
 }
 
 byte bcdToDec(byte val) {
   // Convert binary coded decimal to normal decimal numbers
-  return ((val / 16 * 10) + (val % 16));
+  return ( (val / 16 * 10) + (val % 16) );
 }
 
 MAX6675 TankTemp(thermoCLK, thermoCS, thermoDO);
@@ -31,49 +31,67 @@ unsigned long previousMillis1 = 0;
 const long DisplayInterval = 30000;
 const long TempCheckInterval = 60000;
 
-float TankTempArray[5];
-byte arrayIndex = 0;
+float TankTempArray [5];
+byte  arrayIndex = 0;
 float TankTempAvg = 0.0;
 
-float HeatReturnArray[5];
+float HeatReturnArray [5];
 float HeatReturnAvg = 0.0;
+int TankTempDisplay = round(TankTempAvg);
+int HeatReturnTempDisplay = round(HeatReturnAvg);
 
 void TempUpdate() //Reads temps every minute, creates average, and sends values to Nextion
 {
   TankTempArray[arrayIndex] = (TankTemp.readCelsius());
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 4; i++)
+  {
     TankTempAvg = TankTempAvg + TankTempArray[i];
   }
   TankTempAvg = TankTempAvg / 5;
   HeatReturnArray[arrayIndex] = (HeatReturn.readCelsius());
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 4; i++)
+  {
     HeatReturnAvg = HeatReturnAvg + HeatReturnArray[i];
   }
   HeatReturnAvg = HeatReturnAvg / 5;
   arrayIndex++;
   if (arrayIndex > 4) arrayIndex = 0;
-
+  int TankTempDisplay = round(TankTempAvg);
+  int HeatReturnDisplay = round(HeatReturnAvg);
   Serial.print("Tank Temp = "); //Comment out in final
   Serial.println(TankTemp.readCelsius()); //Comment out in final
   Serial.print("Tank Temp Avg = "); //Comment out in final
-  Serial.println(TankTempAvg); //Comment out in final
-
+  Serial.println(TankTempAvg);//Comment out in final
+  Serial.println(TankTempDisplay);
+  Serial3.print("t8.txt=\"C: " + String(TankTempDisplay) + "\"");
+  Serial3.write(0xff);
+  Serial3.write(0xff);
+  Serial3.write(0xff);
   Serial.print("Heat Return = "); //Comment out in final
   Serial.println(HeatReturn.readCelsius()); //Comment out in final
   Serial.print("Heat Return Avg = "); //Comment out in final
   Serial.println(HeatReturnAvg); //Comment out in final
-  //TODO: Send Avg Temps to Nextion
+  Serial3.print("t9.txt=\"C: " + String(TankTempDisplay) + "\"");
+  Serial3.write(0xff);
+  Serial3.write(0xff);
+  Serial3.write(0xff);
+  //TODO: Add Collector Temp Sensor
 }
 
 void TempCheck() //Compares temps every 15mins, updates valve relay, writes, time, temps, valve and flow runtime to SD card
 {
-  if (TankTemp.readCelsius() > HeatReturn.readCelsius()) {
-    digitalWrite(10, LOW); // set pin 10 LOW
+  if ((TankTempAvg) > (HeatReturnAvg)) {
+    digitalWrite(10, LOW);// set pin 10 LOW
+    Serial3.print("t11.bco=2016");
+    Serial3.write(0xff);
+    Serial3.write(0xff);
+    Serial3.write(0xff);
   } else {
-    digitalWrite(10, HIGH); // set pin 10 HIGH
-    //TODO:Write HeatReturnAvg, TankTempAvg, Time to SD card
-    //TODO: Start chrono when relay=LOW and stop when RELAY=HIGH. Write daily value to SD card at midnight and reset.
-    //      Change color of valve status indicator on Nextion (t11) relay LOW = bco2016, relay HIGH = bco63488
+    digitalWrite(10, HIGH);// set pin 10 HIGH
+    Serial3.print("t11.bco=63488");
+    Serial3.write(0xff);
+    Serial3.write(0xff);
+    Serial3.write(0xff);
   }
   printDate();
 }
@@ -137,21 +155,19 @@ void printDate() {
 
 }
 
+
 void setup() {
   Serial.begin(9600);
   Wire.begin();
+  Serial3.begin(9600);
   setDateTime();
-  pinMode(10, OUTPUT); // Pump Relay pin set as output
-
+  pinMode(10, OUTPUT);// Pump Relay pin set as output
   Serial.println("Initializing");
   // wait for MAX chip to stabilize
   delay(500);
 }
 
 void loop() {
-  //TODO:Look for bluetooth request, dump data folder to bluetooth when requested
-  //TODO:Add Hall Sensor. Start Chrono when pulses/second > 1 and stop when <1. Write daily runtime to SD card at midnight and reset. 
-  //     Change Color of Heating Indicator on Nextion pps>1 = bco63488, pps<1 = bco2016
   unsigned long currentMillis = millis();
 
   if (currentMillis - previousMillis >= DisplayInterval) {
@@ -164,4 +180,4 @@ void loop() {
     previousMillis1 = currentMillis;
     TempCheck();
   }
-}  
+}
