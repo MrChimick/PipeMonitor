@@ -13,6 +13,10 @@ int thermoDO2 = 38;
 int thermoCS2 = 40;
 int thermoCLK2 = 42;
 
+int thermoDO3 = 46;
+int thermoCS3 = 48;
+int thermoCLK3 = 50;
+
 byte decToBcd(byte val) {
   // Convert normal decimal numbers to binary coded decimal
   return ( (val / 10 * 16) + (val % 10) );
@@ -25,6 +29,7 @@ byte bcdToDec(byte val) {
 
 MAX6675 TankTemp(thermoCLK, thermoCS, thermoDO);
 MAX6675 HeatReturn(thermoCLK2, thermoCS2, thermoDO2);
+MAX6675 CollectorTemp(thermoCLK3, thermoCS3, thermoDO3);
 
 unsigned long previousMillis = 0;
 unsigned long previousMillis1 = 0;
@@ -37,6 +42,10 @@ float TankTempAvg = 0.0;
 
 float HeatReturnArray [5];
 float HeatReturnAvg = 0.0;
+
+float CollectorArray [5];
+float CollectorAvg = 0.0;
+
 int TankTempDisplay = round(TankTempAvg);
 int HeatReturnTempDisplay = round(HeatReturnAvg);
 
@@ -48,34 +57,43 @@ void TempUpdate() //Reads temps every minute, creates average, and sends values 
     TankTempAvg = TankTempAvg + TankTempArray[i];
   }
   TankTempAvg = TankTempAvg / 5;
+  
   HeatReturnArray[arrayIndex] = (HeatReturn.readCelsius());
   for (int i = 0; i < 4; i++)
   {
     HeatReturnAvg = HeatReturnAvg + HeatReturnArray[i];
   }
   HeatReturnAvg = HeatReturnAvg / 5;
+
+  CollectorArray[arrayIndex] = (CollectorTemp.readCelsius());
+  for (int i = 0; i < 4; i++)
+  {
+    CollectorAvg = CollectorAvg + CollectorArray[i];
+  }
+  CollectorAvg = CollectorAvg / 5;
+ 
   arrayIndex++;
+  
   if (arrayIndex > 4) arrayIndex = 0;
   int TankTempDisplay = round(TankTempAvg);
   int HeatReturnDisplay = round(HeatReturnAvg);
-  Serial.print("Tank Temp = "); //Comment out in final
-  Serial.println(TankTemp.readCelsius()); //Comment out in final
-  Serial.print("Tank Temp Avg = "); //Comment out in final
-  Serial.println(TankTempAvg);//Comment out in final
-  Serial.println(TankTempDisplay);
-  Serial3.print("t8.txt=\"C: " + String(TankTempDisplay) + "\"");
+  int CollectorDisplay = round(CollectorAvg);
+
+  Serial3.print("t8.txt=\"" + String(TankTempDisplay) +"\xB0" + "C" "\""); 
   Serial3.write(0xff);
   Serial3.write(0xff);
   Serial3.write(0xff);
-  Serial.print("Heat Return = "); //Comment out in final
-  Serial.println(HeatReturn.readCelsius()); //Comment out in final
-  Serial.print("Heat Return Avg = "); //Comment out in final
-  Serial.println(HeatReturnAvg); //Comment out in final
-  Serial3.print("t9.txt=\"C: " + String(TankTempDisplay) + "\"");
+  
+  Serial3.print("t9.txt=\"" + String(HeatReturnDisplay) +"\xB0" + "C" "\"");
   Serial3.write(0xff);
   Serial3.write(0xff);
   Serial3.write(0xff);
-  //TODO: Add Collector Temp Sensor
+
+  Serial3.print("t10.txt=\"" + String(CollectorDisplay) +"\xB0" + "C" "\"");
+  Serial3.write(0xff);
+  Serial3.write(0xff);
+  Serial3.write(0xff);
+
 }
 
 void TempCheck() //Compares temps every 15mins, updates valve relay, writes, time, temps, valve and flow runtime to SD card
@@ -96,6 +114,9 @@ void TempCheck() //Compares temps every 15mins, updates valve relay, writes, tim
   printDate();
 }
 
+void midnight() {
+    //TODO: Update Nextion time, send valve and collector run times to SD card and reset timer
+}
 void setDateTime() {
 
   byte second = 45; //0-59
