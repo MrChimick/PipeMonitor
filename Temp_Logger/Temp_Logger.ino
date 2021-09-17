@@ -13,9 +13,9 @@ int thermoDO2 = 38;
 int thermoCS2 = 40;
 int thermoCLK2 = 42;
 
-int thermoDO3 = 46;
-int thermoCS3 = 48;
-int thermoCLK3 = 50;
+int thermoDO3 = 44;
+int thermoCS3 = 46;
+int thermoCLK3 = 48 ;
 
 byte decToBcd(byte val) {
   // Convert normal decimal numbers to binary coded decimal
@@ -79,7 +79,7 @@ void TempUpdate() //Reads temps every minute, creates average, and sends values 
   int HeatReturnDisplay = round(HeatReturnAvg);
   int CollectorDisplay = round(CollectorAvg);
 
-  Serial3.print("t8.txt=\"" + String(TankTempDisplay) +"\xB0" + "C" "\""); 
+  Serial3.print("Status.t8.txt=\"" + String(TankTempDisplay) +"\xB0" + "C" "\""); 
   Serial3.write(0xff);
   Serial3.write(0xff);
   Serial3.write(0xff);
