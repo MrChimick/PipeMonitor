@@ -56,8 +56,8 @@ const byte CP_PIN_THERMO_CLK = 48;
 const byte SD_PIN_CS = 53;
 
 // String constants
-const String FILE_TEMPERATURE = "temperature_log.csv";
-const String FILE_FLOW_TIME = "flow_time_log.csv";
+const String FILE_TEMPERATURE = "temp_log.csv";
+const String FILE_FLOW_TIME = "flow_log.csv";
 const String HEAD_TEMPERATURE = "Time,Location,Temperature";
 const String HEAD_FLOW_TIME = "Time Started,Time Ended,Duration,Location";
 
@@ -293,19 +293,23 @@ void SD_Init() {
         File tempLogFile = SD.open(FILE_TEMPERATURE, FILE_WRITE);
         tempLogFile.println(HEAD_TEMPERATURE);
         tempLogFile.close();
+        Serial.println(FILE_TEMPERATURE + " created");
     }
     if (!SD.exists(FILE_FLOW_TIME)) {
         File flowLogFile = SD.open(FILE_FLOW_TIME, FILE_WRITE);
         flowLogFile.println(HEAD_FLOW_TIME);
         flowLogFile.close();
+        Serial.println(FILE_FLOW_TIME + " created");
     }
+
+    Serial.println("SD initialization complete");
 }
 
 void SD_LogTemp(String location, int temp) {
     String currTime = DateTimeToString(GetCurrentDateTime());
     File tempLogFile = SD.open(FILE_TEMPERATURE, FILE_WRITE);
     if (tempLogFile) {
-        tempLogFile.println(currTime + "," + location + "," + temp);
+        tempLogFile.println(currTime + "," + location + "," + String(temp));
         tempLogFile.close();
     }
 }
@@ -317,7 +321,7 @@ void SD_LogFlow(String location, FlowTracker flowEntry) {
     
     File flowLogFile = SD.open(FILE_FLOW_TIME, FILE_WRITE);
     if (flowLogFile) {
-        flowLogFile.println(startTime + "," + endTime + "," + duration + "," + location);
+        flowLogFile.println(startTime + "," + endTime + "," + String(duration) + "," + location);
         flowLogFile.close();
     }
 }
@@ -332,6 +336,7 @@ void setup() {
     Serial3.begin(9600);
     SetDateTime();
     pinMode(10, OUTPUT); // Pump Relay pin set as output
+    pinMode(SD_PIN_CS, OUTPUT); // SPI bus
     Serial.println("Initializing");
     // wait for MAX chip to stabilize
     delay(500);
