@@ -6,6 +6,26 @@
 #define DS1307_ADDRESS 0x68
 
 /************************************************
+ * DATA STRUCTURES
+ ***********************************************/
+struct DateTime {
+    byte year;
+    byte month;
+    byte monthDay;
+    byte weekDay;
+    byte hour;
+    byte minute;
+    byte second;
+};
+
+struct FlowTracker {
+    bool flowStatus;
+    DateTime startTime;
+    DateTime endTime;
+};
+
+
+/************************************************
  * FILE CONSTANTS
  ***********************************************/
 // Quantity constants
@@ -15,6 +35,10 @@ const byte TEMP_AVG_ARRAY = 5;
 
 const long TEMP_READ_INTERVAL = 30000;
 const long TEMP_COMPARE_INTERVAL = 60000;
+
+const byte NUM_SEC = 60;
+const byte NUM_MIN = 60;
+const byte NUM_HOUR = 24;
 
 // Pin constants
 const byte BT_PIN_THERMO_DO = 30;
@@ -28,6 +52,18 @@ const byte HR_PIN_THERMO_CLK = 42;
 const byte CP_PIN_THERMO_DO = 44;
 const byte CP_PIN_THERMO_CS = 46;
 const byte CP_PIN_THERMO_CLK = 48;
+
+const byte SD_PIN_CS = 53;
+
+// String constants
+const String FILE_TEMPERATURE = "temperature_log.csv";
+const String FILE_FLOW_TIME = "flow_time_log.csv";
+const String HEAD_TEMPERATURE = "Time,Location,Temperature";
+const String HEAD_FLOW_TIME = "Time Started,Time Ended,Duration,Location";
+
+const String BT_LOCATION_STR = "Boiler Tank";
+const String HR_LOCATION_STR = "Heat Return Pipe";
+const String CP_LOCATION_STR = "Collector Pipe";
 
 
 /************************************************
@@ -45,7 +81,7 @@ float tankTempArray[TEMP_AVG_ARRAY];
 float tankTempAvg = 0.0;
 
 float heatReturnTempArray[TEMP_AVG_ARRAY];
-float heatReturnAvg = 0.0;
+float heatReturnTempAvg = 0.0;
 
 float collectorTempArray[TEMP_AVG_ARRAY];
 float collectorTempAvg = 0.0;
@@ -53,6 +89,10 @@ float collectorTempAvg = 0.0;
 // Time interval counters
 unsigned long previousMillisRead = 0;
 unsigned long previousMillisCompare = 0;
+
+// Flow variables
+FlowTracker heatReturnFlowTracker;
+FlowTracker collectorFlowTracker;
 
 
 /************************************************
@@ -72,54 +112,21 @@ void Serial3LineEnd() {
     for (byte i = 0; i < 3; i++) Serial3.write(0xff);
 }
 
+String DateTimeToString(DateTime timePrint) { // return the date EG 21/10/5 23:59:59
+    return (
+        String(timePrint.year) + '/' +
+        String(timePrint.month) + '/' +
+        String(timePrint.monthDay) + ' ' + 
+        String(timePrint.hour) + ':' +
+        String(timePrint.minute) + ':' +
+        String(timePrint.second)
+        );
+}
+
 
 /************************************************
- * MAIN FUNCTIONS
+ * DATE & TIME FUNCTIONS
  ***********************************************/
-void TempRead() { //Reads temps every minute, creates average, and sends values to Nextion
-    tankTempArray[arrayIndex] = (TankTempSensor.readCelsius());
-    heatReturnTempArray[arrayIndex] = (HeatReturnTempSensor.readCelsius());
-    collectorTempArray[arrayIndex] = (CollectorTempSensor.readCelsius());
-    
-    for (byte i = 0; i < TEMP_AVG_ARRAY; i++) {
-        tankTempAvg += tankTempArray[i];
-        heatReturnAvg += heatReturnTempArray[i];
-        collectorTempAvg += collectorTempArray[i];
-    }
-    
-    tankTempAvg /= TEMP_AVG_ARRAY;
-    heatReturnAvg /= TEMP_AVG_ARRAY;
-    collectorTempAvg /= TEMP_AVG_ARRAY;
-
-    arrayIndex++;
-    if (arrayIndex >= TEMP_AVG_ARRAY) arrayIndex = 0;
-
-    Serial3.print("Status.t8.txt=\"" + String(round(tankTempAvg)) + "\xB0" + "C\"");
-    Serial3LineEnd();
-
-    Serial3.print("t9.txt=\"" + String(round(heatReturnAvg)) + "\xB0" + "C\"");
-    Serial3LineEnd();
-
-    Serial3.print("t10.txt=\"" + String(round(collectorTempAvg)) + "\xB0" + "C\"");
-    Serial3LineEnd();
-}
-
-void TempCompare() { //Compares temps every 15mins, updates valve relay, writes, time, temps, valve and flow runtime to SD card
-    if (tankTempAvg > heatReturnAvg) {
-        digitalWrite(10, LOW); // set pin 10 LOW
-        Serial3.print("t11.bco=2016");
-        Serial3LineEnd();
-    } else {
-        digitalWrite(10, HIGH); // set pin 10 HIGH
-        Serial3.print("t11.bco=63488");
-        Serial3LineEnd();
-    }
-    PrintDate();
-}
-
-void Midnight() {
-    //TODO: Update Nextion time, send valve and collector run times to SD card and reset timer
-}
 void SetDateTime() {
 
     byte second = 45; //0-59
@@ -146,8 +153,7 @@ void SetDateTime() {
     Wire.endTransmission();
 }
 
-void PrintDate() {
-
+DateTime GetCurrentDateTime() {
     // Reset the register pointer
     Wire.beginTransmission(DS1307_ADDRESS);
     Wire.write(ZERO);
@@ -155,26 +161,165 @@ void PrintDate() {
 
     Wire.requestFrom(DS1307_ADDRESS, 7);
 
-    int second = BcdToDec(Wire.read());
-    int minute = BcdToDec(Wire.read());
-    int hour = BcdToDec(Wire.read() & 0b111111); //24 hour time
-    int weekDay = BcdToDec(Wire.read()); //0-6 -> sunday â€“ Saturday
-    int monthDay = BcdToDec(Wire.read());
-    int month = BcdToDec(Wire.read());
-    int year = BcdToDec(Wire.read());
+    DateTime currDateTime;
+    currDateTime.second = BcdToDec(Wire.read());
+    currDateTime.minute = BcdToDec(Wire.read());
+    currDateTime.hour = BcdToDec(Wire.read() & 0b111111); //24 hour time
+    currDateTime.weekDay = BcdToDec(Wire.read()); //0-6 -> sunday â€“ Saturday
+    currDateTime.monthDay = BcdToDec(Wire.read());
+    currDateTime.month = BcdToDec(Wire.read());
+    currDateTime.year = BcdToDec(Wire.read());
 
-    //print the date EG 3/1/11 23:59:59
-    Serial.print(month);
-    Serial.print("/");
-    Serial.print(monthDay);
-    Serial.print("/");
-    Serial.print(year);
-    Serial.print(" ");
-    Serial.print(hour);
-    Serial.print(":");
-    Serial.print(minute);
-    Serial.print(":");
-    Serial.println(second);
+    return currDateTime;
+}
+
+String GetCurrentDateTimeStr() {
+    return DateTimeToString(GetCurrentDateTime());
+}
+
+void PrintDate() {
+    Serial.println(GetCurrentDateTimeStr());
+}
+
+int GetMinutesBetweenDateTime(DateTime startTime, DateTime endTime) { // Assumes the days are adjacent
+    int seconds = 0;
+
+    if (endTime.monthDay != startTime.monthDay) { // different days
+        seconds += (NUM_SEC - startTime.second) + endTime.second;
+        seconds += ((NUM_MIN - startTime.minute) + endTime.minute) * NUM_SEC;
+        seconds += (((NUM_HOUR - startTime.hour) + endTime.hour) * NUM_MIN) * NUM_SEC;
+    } else if (endTime.hour != startTime.hour) { // different hours
+        seconds += (NUM_SEC - startTime.second) + endTime.second;
+        seconds += ((NUM_MIN - startTime.minute) + endTime.minute) * NUM_SEC;
+        seconds += ((endTime.hour - startTime.hour) * NUM_MIN) * NUM_SEC;
+    } else if (endTime.minute != startTime.minute) { // different minutes
+        seconds += (NUM_SEC - startTime.second) + endTime.second;
+        seconds += (endTime.minute - startTime.minute)* NUM_SEC;
+    } else if (endTime.second != startTime.second) { // different seconds
+        seconds += endTime.second - startTime.second;
+    } else {
+        return 0; // literally the same time
+    }
+
+    return round(seconds / NUM_SEC);
+}
+
+
+/************************************************
+ * MAIN FUNCTIONS
+ ***********************************************/
+void TempRead() { //Reads temps every minute, creates average, and sends values to Nextion
+    tankTempArray[arrayIndex] = (TankTempSensor.readCelsius());
+    heatReturnTempArray[arrayIndex] = (HeatReturnTempSensor.readCelsius());
+    collectorTempArray[arrayIndex] = (CollectorTempSensor.readCelsius());
+    
+    for (byte i = 0; i < TEMP_AVG_ARRAY; i++) {
+        tankTempAvg += tankTempArray[i];
+        heatReturnTempAvg += heatReturnTempArray[i];
+        collectorTempAvg += collectorTempArray[i];
+    }
+    
+    tankTempAvg /= TEMP_AVG_ARRAY;
+    heatReturnTempAvg /= TEMP_AVG_ARRAY;
+    collectorTempAvg /= TEMP_AVG_ARRAY;
+
+    arrayIndex++;
+    if (arrayIndex >= TEMP_AVG_ARRAY) arrayIndex = 0;
+
+    Serial3.print("Status.t8.txt=\"" + String(round(tankTempAvg)) + "\xB0" + "C\"");
+    Serial3LineEnd();
+
+    Serial3.print("t9.txt=\"" + String(round(heatReturnTempAvg)) + "\xB0" + "C\"");
+    Serial3LineEnd();
+
+    Serial3.print("t10.txt=\"" + String(round(collectorTempAvg)) + "\xB0" + "C\"");
+    Serial3LineEnd();
+}
+
+void TempCompare() { //Compares temps every 15mins, updates valve relay, writes, time, temps
+    if (tankTempAvg > heatReturnTempAvg) {
+        digitalWrite(10, LOW); // set pin 10 LOW
+        Serial3.print("t11.bco=2016");
+        Serial3LineEnd();
+    } else {
+        digitalWrite(10, HIGH); // set pin 10 HIGH
+        Serial3.print("t11.bco=63488");
+        Serial3LineEnd();
+    }
+    
+    SD_LogTemp(BT_LOCATION_STR, tankTempAvg);
+    SD_LogTemp(HR_LOCATION_STR, heatReturnTempAvg);
+    SD_LogTemp(CP_LOCATION_STR, collectorTempAvg);
+    PrintDate();
+}
+
+void FlowDetection() {
+    // TODO: detect when heat return flow is on
+    if (false) { // false so it doesn't run for now
+        if (heatReturnFlowTracker.flowStatus == false) { // flow just turned on
+            heatReturnFlowTracker.flowStatus = true;
+            heatReturnFlowTracker.startTime = GetCurrentDateTime();
+        }
+    } else if (heatReturnFlowTracker.flowStatus == true) { // flow just turned off
+        heatReturnFlowTracker.endTime = GetCurrentDateTime();
+        SD_LogFlow(HR_LOCATION_STR, heatReturnFlowTracker);
+        heatReturnFlowTracker.flowStatus = false;
+    }
+
+    // TODO: detect when collector flow is on
+    if (false) { // false so it doesn't run for now
+        if (collectorFlowTracker.flowStatus == false) { // flow just turned on
+            collectorFlowTracker.flowStatus = true;
+            collectorFlowTracker.startTime = GetCurrentDateTime();
+        }
+    } else if (collectorFlowTracker.flowStatus == true) { // flow just turned off
+        collectorFlowTracker.endTime = GetCurrentDateTime();
+        SD_LogFlow(CP_LOCATION_STR, collectorFlowTracker);
+        collectorFlowTracker.flowStatus = false;
+    }
+}
+
+void Midnight() {
+    //TODO: Update Nextion time
+}
+
+void SD_Init() {
+    if (!SD.begin(SD_PIN_CS)) {
+        Serial.println("SD initialization failed");
+        return;
+    }
+    
+    if (!SD.exists(FILE_TEMPERATURE)) {
+        File tempLogFile = SD.open(FILE_TEMPERATURE, FILE_WRITE);
+        tempLogFile.println(HEAD_TEMPERATURE);
+        tempLogFile.close();
+    }
+    if (!SD.exists(FILE_FLOW_TIME)) {
+        File flowLogFile = SD.open(FILE_FLOW_TIME, FILE_WRITE);
+        flowLogFile.println(HEAD_FLOW_TIME);
+        flowLogFile.close();
+    }
+}
+
+void SD_LogTemp(String location, int temp) {
+    String currTime = DateTimeToString(GetCurrentDateTime());
+    File tempLogFile = SD.open(FILE_TEMPERATURE, FILE_WRITE);
+    if (tempLogFile) {
+        tempLogFile.println(currTime + "," + location + "," + temp);
+        tempLogFile.close();
+    }
+}
+
+void SD_LogFlow(String location, FlowTracker flowEntry) {
+    String startTime = DateTimeToString(flowEntry.startTime);
+    String endTime = DateTimeToString(flowEntry.endTime);
+    int duration = GetMinutesBetweenDateTime(flowEntry.startTime, flowEntry.endTime);
+    
+    File flowLogFile = SD.open(FILE_FLOW_TIME, FILE_WRITE);
+    if (flowLogFile) {
+        flowLogFile.println(startTime + "," + endTime + "," + duration + "," + location);
+        flowLogFile.close();
+    }
 }
 
 
@@ -190,6 +335,7 @@ void setup() {
     Serial.println("Initializing");
     // wait for MAX chip to stabilize
     delay(500);
+    SD_Init();
 }
 
 void loop() {
@@ -198,6 +344,7 @@ void loop() {
     if ((currentMillis - previousMillisRead) >= TEMP_READ_INTERVAL) {
         previousMillisRead = currentMillis;
         TempRead();
+        FlowDetection();
     }
 
     if ((currentMillis - previousMillisCompare) >= TEMP_COMPARE_INTERVAL) {
