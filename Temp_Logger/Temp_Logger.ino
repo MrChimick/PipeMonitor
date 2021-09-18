@@ -9,7 +9,7 @@
  * FILE CONSTANTS
  ***********************************************/
 // Quantity constants
-const byte zero = 0x00;
+const byte ZERO = 0x00;
 
 const int TEMP_AVG_ARRAY = 5;
 
@@ -94,13 +94,13 @@ void TempRead() { //Reads temps every minute, creates average, and sends values 
     arrayIndex++;
     if (arrayIndex >= TEMP_AVG_ARRAY) arrayIndex = 0;
 
-    Serial3.print("Status.t8.txt=\"" + String(round(tankTempAvg)) + "\xB0" + "C" + "\"");
+    Serial3.print("Status.t8.txt=\"" + String(round(tankTempAvg)) + "\xB0" + "C\"");
     Serial3LineEnd();
 
-    Serial3.print("t9.txt=\"" + String(round(heatReturnAvg)) + "\xB0" + "C" + "\"");
+    Serial3.print("t9.txt=\"" + String(round(heatReturnAvg)) + "\xB0" + "C\"");
     Serial3LineEnd();
 
-    Serial3.print("t10.txt=\"" + String(round(collectorTempAvg)) + "\xB0" + "C" + "\"");
+    Serial3.print("t10.txt=\"" + String(round(collectorTempAvg)) + "\xB0" + "C\"");
     Serial3LineEnd();
 }
 
@@ -114,13 +114,13 @@ void TempCompare() { //Compares temps every 15mins, updates valve relay, writes,
         Serial3.print("t11.bco=63488");
         Serial3LineEnd();
     }
-    printDate();
+    PrintDate();
 }
 
-void midnight() {
+void Midnight() {
     //TODO: Update Nextion time, send valve and collector run times to SD card and reset timer
 }
-void setDateTime() {
+void SetDateTime() {
 
     byte second = 45; //0-59
     byte minute = 40; //0-59
@@ -131,7 +131,7 @@ void setDateTime() {
     byte year = 11; //0-99
 
     Wire.beginTransmission(DS1307_ADDRESS);
-    Wire.write(zero);
+    Wire.write(ZERO);
 
     Wire.write(DecToBcd(second));
     Wire.write(DecToBcd(minute));
@@ -141,16 +141,16 @@ void setDateTime() {
     Wire.write(DecToBcd(month));
     Wire.write(DecToBcd(year));
 
-    Wire.write(zero); //start
+    Wire.write(ZERO); //start
 
     Wire.endTransmission();
 }
 
-void printDate() {
+void PrintDate() {
 
     // Reset the register pointer
     Wire.beginTransmission(DS1307_ADDRESS);
-    Wire.write(zero);
+    Wire.write(ZERO);
     Wire.endTransmission();
 
     Wire.requestFrom(DS1307_ADDRESS, 7);
@@ -185,7 +185,7 @@ void setup() {
     Serial.begin(9600);
     Wire.begin();
     Serial3.begin(9600);
-    setDateTime();
+    SetDateTime();
     pinMode(10, OUTPUT); // Pump Relay pin set as output
     Serial.println("Initializing");
     // wait for MAX chip to stabilize
