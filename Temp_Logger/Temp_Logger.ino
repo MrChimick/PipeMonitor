@@ -11,23 +11,23 @@
 // Quantity constants
 const byte ZERO = 0x00;
 
-const int TEMP_AVG_ARRAY = 5;
+const byte TEMP_AVG_ARRAY = 5;
 
 const long TEMP_READ_INTERVAL = 30000;
 const long TEMP_COMPARE_INTERVAL = 60000;
 
 // Pin constants
-const int BT_PIN_THERMO_DO = 30;
-const int BT_PIN_THERMO_CS = 32;
-const int BT_PIN_THERMO_CLK = 34;
+const byte BT_PIN_THERMO_DO = 30;
+const byte BT_PIN_THERMO_CS = 32;
+const byte BT_PIN_THERMO_CLK = 34;
 
-const int HR_PIN_THERMO_DO = 38;
-const int HR_PIN_THERMO_CS = 40;
-const int HR_PIN_THERMO_CLK = 42;
+const byte HR_PIN_THERMO_DO = 38;
+const byte HR_PIN_THERMO_CS = 40;
+const byte HR_PIN_THERMO_CLK = 42;
 
-const int CP_PIN_THERMO_DO = 44;
-const int CP_PIN_THERMO_CS = 46;
-const int CP_PIN_THERMO_CLK = 48;
+const byte CP_PIN_THERMO_DO = 44;
+const byte CP_PIN_THERMO_CS = 46;
+const byte CP_PIN_THERMO_CLK = 48;
 
 
 /************************************************
@@ -69,7 +69,7 @@ byte BcdToDec(byte val) {
 }
 
 void Serial3LineEnd() {
-    for (int i = 0; i < 3; i++) Serial3.write(0xff);
+    for (byte i = 0; i < 3; i++) Serial3.write(0xff);
 }
 
 
@@ -81,7 +81,7 @@ void TempRead() { //Reads temps every minute, creates average, and sends values 
     heatReturnTempArray[arrayIndex] = (HeatReturnTempSensor.readCelsius());
     collectorTempArray[arrayIndex] = (CollectorTempSensor.readCelsius());
     
-    for (int i = 0; i < TEMP_AVG_ARRAY; i++) {
+    for (byte i = 0; i < TEMP_AVG_ARRAY; i++) {
         tankTempAvg += tankTempArray[i];
         heatReturnAvg += heatReturnTempArray[i];
         collectorTempAvg += collectorTempArray[i];
