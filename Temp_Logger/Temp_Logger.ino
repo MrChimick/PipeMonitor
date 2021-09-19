@@ -339,7 +339,8 @@ void setup() {
     Serial3.begin(9600);
     SetDateTime();
     pinMode(10, OUTPUT); // Pump Relay pin set as output
-    pinMode(SD_PIN_CS, OUTPUT); // SPI bus
+    pinMode(SD_PIN_CS, OUTPUT);// SPI bus
+    pinMode(7, INPUT);
     Serial.println("Initializing");
     // wait for MAX chip to stabilize
     delay(500);
@@ -348,6 +349,17 @@ void setup() {
 
 void loop() {
     unsigned long currentMillis = millis();
+    int flowPin = 7;
+
+    if (digitalRead(flowPin) == HIGH) {
+        Serial3.print("t12.bco=2016");
+        Serial3LineEnd();
+        //TODO: Start Runtime counter
+    } else {
+        Serial3.print("t12.bco=63488");
+        Serial3LineEnd();
+        //TODO:End Runtime counter
+    }
 
     if ((currentMillis - previousMillisRead) >= TEMP_READ_INTERVAL) {
         previousMillisRead = currentMillis;
