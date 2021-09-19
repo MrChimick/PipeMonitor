@@ -40,6 +40,9 @@ const byte NUM_SEC = 60;
 const byte NUM_MIN = 60;
 const byte NUM_HOUR = 24;
 
+const int STARTUP_DELAY = 500;
+const int STARTUP_SPEED = 9600;
+
 // Pin constants
 const byte BT_PIN_THERMO_DO = 30;
 const byte BT_PIN_THERMO_CS = 32;
@@ -54,6 +57,10 @@ const byte CP_PIN_THERMO_CS = 46;
 const byte CP_PIN_THERMO_CLK = 48;
 
 const byte SD_PIN_CS = 53;
+
+const byte CP_PIN_FLOW = 7;
+
+const byte RELAY_PIN = 10;
 
 // String constants
 const String FILE_TEMPERATURE = "temp_log.csv";
@@ -177,10 +184,6 @@ String GetCurrentDateTimeStr() {
     return DateTimeToString(GetCurrentDateTime());
 }
 
-void PrintDate() {
-    Serial.println(GetCurrentDateTimeStr());
-}
-
 int GetMinutesBetweenDateTime(DateTime startTime, DateTime endTime) { // Assumes the days are adjacent
     int seconds = 0;
 
@@ -241,44 +244,43 @@ void TempRead() { //Reads temps every minute, creates average, and sends values 
 
 void TempCompare() { //Compares temps every 15mins, updates valve relay, writes, time, temps
     if (tankTempAvg > heatReturnTempAvg) {
-        digitalWrite(10, LOW); // set pin 10 LOW
-        Serial3.print("t11.bco=2016");
-        Serial3LineEnd();
-    } else {
-        digitalWrite(10, HIGH); // set pin 10 HIGH
-        Serial3.print("t11.bco=63488");
-        Serial3LineEnd();
-    }
-    
-    SD_LogTemp(BT_LOCATION_STR, tankTempAvg);
-    SD_LogTemp(HR_LOCATION_STR, heatReturnTempAvg);
-    SD_LogTemp(CP_LOCATION_STR, collectorTempAvg);
-    PrintDate();
-}
-
-void FlowDetection() {
-    // TODO: detect when heat return flow is on
-    if (false) { // false so it doesn't run for now
-        if (heatReturnFlowTracker.flowStatus == false) { // flow just turned on
+        if (heatReturnFlowTracker.flowStatus != true) { // flow just turned on
+            digitalWrite(RELAY_PIN, LOW); // set pin 10 LOW
             heatReturnFlowTracker.flowStatus = true;
             heatReturnFlowTracker.startTime = GetCurrentDateTime();
+            Serial3.print("t11.bco=2016");
+            Serial3LineEnd();
         }
     } else if (heatReturnFlowTracker.flowStatus == true) { // flow just turned off
+        digitalWrite(RELAY_PIN, HIGH); // set pin 10 HIGH
         heatReturnFlowTracker.endTime = GetCurrentDateTime();
         SD_LogFlow(HR_LOCATION_STR, heatReturnFlowTracker);
         heatReturnFlowTracker.flowStatus = false;
+        Serial3.print("t11.bco=63488");
+        Serial3LineEnd();
     }
+}
 
-    // TODO: detect when collector flow is on
-    if (false) { // false so it doesn't run for now
-        if (collectorFlowTracker.flowStatus == false) { // flow just turned on
+void LogAllTemperatures() {
+    SD_LogTemp(BT_LOCATION_STR, tankTempAvg);
+    SD_LogTemp(HR_LOCATION_STR, heatReturnTempAvg);
+    SD_LogTemp(CP_LOCATION_STR, collectorTempAvg);
+}
+
+void FlowDetection() {
+    if (digitalRead(CP_PIN_FLOW) == HIGH) {
+        if (collectorFlowTracker.flowStatus != true) { // flow just turned on
             collectorFlowTracker.flowStatus = true;
             collectorFlowTracker.startTime = GetCurrentDateTime();
+            Serial3.print("t12.bco=2016");
+            Serial3LineEnd();
         }
     } else if (collectorFlowTracker.flowStatus == true) { // flow just turned off
         collectorFlowTracker.endTime = GetCurrentDateTime();
         SD_LogFlow(CP_LOCATION_STR, collectorFlowTracker);
         collectorFlowTracker.flowStatus = false;
+        Serial3.print("t12.bco=63488");
+        Serial3LineEnd();
     }
 }
 
@@ -334,32 +336,21 @@ void SD_LogFlow(String location, FlowTracker flowEntry) {
  * SYSTEM FUNCTIONS
  ***********************************************/
 void setup() {
-    Serial.begin(9600);
+    Serial.begin(STARTUP_SPEED);
     Wire.begin();
-    Serial3.begin(9600);
+    Serial3.begin(STARTUP_SPEED);
     SetDateTime();
-    pinMode(10, OUTPUT); // Pump Relay pin set as output
-    pinMode(SD_PIN_CS, OUTPUT);// SPI bus
-    pinMode(7, INPUT);
+    pinMode(RELAY_PIN, OUTPUT); // Pump Relay pin set as output
+    pinMode(SD_PIN_CS, OUTPUT); // SPI bus
+    pinMode(CP_PIN_FLOW, INPUT); // Flow detection
     Serial.println("Initializing");
     // wait for MAX chip to stabilize
-    delay(500);
+    delay(STARTUP_DELAY);
     SD_Init();
 }
 
 void loop() {
     unsigned long currentMillis = millis();
-    int flowPin = 7;
-
-    if (digitalRead(flowPin) == HIGH) {
-        Serial3.print("t12.bco=2016");
-        Serial3LineEnd();
-        //TODO: Start Runtime counter
-    } else {
-        Serial3.print("t12.bco=63488");
-        Serial3LineEnd();
-        //TODO:End Runtime counter
-    }
 
     if ((currentMillis - previousMillisRead) >= TEMP_READ_INTERVAL) {
         previousMillisRead = currentMillis;
@@ -370,5 +361,6 @@ void loop() {
     if ((currentMillis - previousMillisCompare) >= TEMP_COMPARE_INTERVAL) {
         previousMillisCompare = currentMillis;
         TempCompare();
+        LogAllTemperatures();
     }
 }
