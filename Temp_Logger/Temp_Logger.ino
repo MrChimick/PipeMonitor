@@ -212,6 +212,9 @@ void TempRead() { //Reads temps every minute, creates average, and sends values 
     tankTempArray[arrayIndex] = (TankTempSensor.readCelsius());
     heatReturnTempArray[arrayIndex] = (HeatReturnTempSensor.readCelsius());
     collectorTempArray[arrayIndex] = (CollectorTempSensor.readCelsius());
+    tankTempAvg = 0.0;
+    heatReturnTempAvg = 0.0;
+    collectorTempAvg = 0.0;
     
     for (byte i = 0; i < TEMP_AVG_ARRAY; i++) {
         tankTempAvg += tankTempArray[i];
