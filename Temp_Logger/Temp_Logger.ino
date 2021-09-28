@@ -331,6 +331,23 @@ void SD_LogFlow(String location, FlowTracker flowEntry) {
     }
 }
 
+void PrintCurrentDateTime() {
+    DateTime currTime; // declaring a variable of type DateTime
+    currTime = GetCurrentDateTime(); // getting the current DateTime using the function
+
+    // accessing all members
+    Serial.println("Second: " + String(currTime.second));
+    Serial.println("Minute: " + String(currTime.minute));
+    Serial.println("Hour: " + String(currTime.hour));
+    Serial.println("WeekDay: " + String(currTime.weekDay));
+    Serial.println("MonthDay: " + String(currTime.monthDay));
+    Serial.println("Month: " + String(currTime.month));
+    Serial.println("Year: " + String(currTime.year));
+
+    // I can change the members as well
+    currTime.second = 0;
+}
+
 
 /************************************************
  * SYSTEM FUNCTIONS
