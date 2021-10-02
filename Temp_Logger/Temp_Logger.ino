@@ -235,10 +235,10 @@ void TempRead() { //Reads temps every minute, creates average, and sends values 
     Serial3.print("Status.t8.txt=\"" + String(round(tankTempAvg)) + "\xB0" + "C\"");
     Serial3LineEnd();
 
-    Serial3.print("t9.txt=\"" + String(round(heatReturnTempAvg)) + "\xB0" + "C\"");
+    Serial3.print("Status.t9.txt=\"" + String(round(heatReturnTempAvg)) + "\xB0" + "C\"");
     Serial3LineEnd();
 
-    Serial3.print("t10.txt=\"" + String(round(collectorTempAvg)) + "\xB0" + "C\"");
+    Serial3.print("Status.t10.txt=\"" + String(round(collectorTempAvg)) + "\xB0" + "C\"");
     Serial3LineEnd();
 }
 
@@ -248,7 +248,7 @@ void TempCompare() { //Compares temps every 15mins, updates valve relay, writes,
             digitalWrite(RELAY_PIN, LOW); // set pin 10 LOW
             heatReturnFlowTracker.flowStatus = true;
             heatReturnFlowTracker.startTime = GetCurrentDateTime();
-            Serial3.print("t11.bco=2016");
+            Serial3.print("Status.t11.bco=2016");
             Serial3LineEnd();
         }
     } else if (heatReturnFlowTracker.flowStatus == true) { // flow just turned off
@@ -256,7 +256,7 @@ void TempCompare() { //Compares temps every 15mins, updates valve relay, writes,
         heatReturnFlowTracker.endTime = GetCurrentDateTime();
         SD_LogFlow(HR_LOCATION_STR, heatReturnFlowTracker);
         heatReturnFlowTracker.flowStatus = false;
-        Serial3.print("t11.bco=63488");
+        Serial3.print("Status.t11.bco=63488");
         Serial3LineEnd();
     }
 }
@@ -272,20 +272,21 @@ void FlowDetection() {
         if (collectorFlowTracker.flowStatus != true) { // flow just turned on
             collectorFlowTracker.flowStatus = true;
             collectorFlowTracker.startTime = GetCurrentDateTime();
-            Serial3.print("t12.bco=2016");
+            Serial3.print("Status.t12.bco=2016");
             Serial3LineEnd();
         }
     } else if (collectorFlowTracker.flowStatus == true) { // flow just turned off
         collectorFlowTracker.endTime = GetCurrentDateTime();
         SD_LogFlow(CP_LOCATION_STR, collectorFlowTracker);
         collectorFlowTracker.flowStatus = false;
-        Serial3.print("t12.bco=63488");
+        Serial3.print("Status.t12.bco=63488");
         Serial3LineEnd();
     }
 }
 
 void Midnight() {
     //TODO: Update Nextion time
+    Serial3.print("rtc0=\"" (currTime.year) "\"");
 }
 
 void SD_Init() {
