@@ -38,7 +38,7 @@ const long TEMP_COMPARE_INTERVAL = 60000;
 
 const byte NUM_SEC = 60;
 const byte NUM_MIN = 60;
-const byte NUM_HOUR = 24; 
+const byte NUM_HOUR = 24;
 
 const int STARTUP_DELAY = 500;
 const int STARTUP_SPEED = 9600;
@@ -286,13 +286,7 @@ void FlowDetection() {
 
 void Midnight() {
     //TODO: Update Nextion time
-<<<<<<< Updated upstream
     Serial3.print("rtc0=\"" (currTime.year) "\"");
-=======
-    Serial3.print("rtc2=(monthDay)"); 
-    Serial3LineEnd();
-    Serial.print(currDateTime.monthDay);
->>>>>>> Stashed changes
 }
 
 void SD_Init() {
@@ -337,7 +331,6 @@ void SD_LogFlow(String location, FlowTracker flowEntry) {
         flowLogFile.close();
     }
 }
-<<<<<<< Updated upstream
 
 void PrintCurrentDateTime() {
     DateTime currTime; // declaring a variable of type DateTime
@@ -357,9 +350,6 @@ void PrintCurrentDateTime() {
 }
 
 
-=======
- 
->>>>>>> Stashed changes
 /************************************************
  * SYSTEM FUNCTIONS
  ***********************************************/
@@ -378,10 +368,8 @@ void setup() {
 }
 
 void loop() {
-    unsigned long currentMillis = millis(); 
+    unsigned long currentMillis = millis();
 
-    Midnight();
-    
     if ((currentMillis - previousMillisRead) >= TEMP_READ_INTERVAL) {
         previousMillisRead = currentMillis;
         TempRead();
