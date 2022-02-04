@@ -370,7 +370,7 @@ void setup() {
     SetDateTime();
     pinMode(RELAY_PIN, OUTPUT); // Pump Relay pin set as output
     pinMode(SD_PIN_CS, OUTPUT); // SPI bus
-    pinMode(CP_PIN_FLOW, INPUT_PULLUP); // Flow detection
+    pinMode(CP_PIN_FLOW, INPUT); // Flow detection
     Serial.println("Initializing");
     // wait for MAX chip to stabilize
     delay(STARTUP_DELAY);
