@@ -34,13 +34,13 @@ const byte ZERO = 0x00;
 const byte TEMP_AVG_ARRAY = 5;
 
 const long TEMP_READ_INTERVAL = 1000;
-const long TEMP_COMPARE_INTERVAL = 900000;
+const long TEMP_COMPARE_INTERVAL = 30000; //CHANGE TO 900000 in for final
 
 const byte NUM_SEC = 60;
 const byte NUM_MIN = 60;
 const byte NUM_HOUR = 24;
 
-const int STARTUP_DELAY = 500;
+const int STARTUP_DELAY = 1000;
 const int STARTUP_SPEED = 9600;
 
 // Pin constants
@@ -60,7 +60,7 @@ const byte SD_PIN_CS = 15;
 
 const byte CP_PIN_FLOW = 69;
 
-const byte RELAY_PIN = 66;
+const byte RELAY_PIN = 65;
 
 // String constants
 const String FILE_TEMPERATURE = "temp_log.csv";
@@ -241,8 +241,8 @@ void TempRead() { //Reads temps every second, creates average, and sends values 
   Serial2.print("t10.txt=\"" + String(round(collectorTempAvg)) + "\xB0" + "C\"");
   Serial3LineEnd();
 
- Serial.println(collectorTempAvg);
-  
+  Serial.println(collectorTempAvg);
+
   Serial.println(tankTempAvg);
 
 }
@@ -385,4 +385,4 @@ void loop() {
     TempCompare();
     LogAllTemperatures();
   }
-} 
+}
