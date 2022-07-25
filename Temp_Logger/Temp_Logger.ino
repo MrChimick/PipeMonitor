@@ -61,6 +61,7 @@ const byte SD_PIN_CS = 15;
 const byte CP_PIN_FLOW = 69;
 
 const byte RELAY_PIN = 65;
+const byte CIRC_PIN = 66;
 
 // String constants
 const String FILE_TEMPERATURE = "temp_log.csv";
@@ -71,6 +72,14 @@ const String HEAD_FLOW_TIME = "Time Started,Time Ended,Duration,Location";
 const String BT_LOCATION_STR = "Boiler Tank";
 const String HR_LOCATION_STR = "Heat Return Pipe";
 const String CP_LOCATION_STR = "Collector Pipe";
+
+String inputstring = "";                              //a string to hold incoming data from the PC
+String sensorstring = "";                             //a string to hold the data from the Atlas Scientific product
+boolean input_string_complete = false;                //have we received all the data from the PC
+boolean sensor_string_complete = false;               //have we received all the data from the Atlas Scientific product
+float temperature;                                    //used to hold a floating point number that is the RTD temperature
+
+
 
 
 /************************************************
@@ -92,6 +101,8 @@ float heatReturnTempAvg = 0.0;
 
 float collectorTempArray[TEMP_AVG_ARRAY];
 float collectorTempAvg = 0.0;
+
+float tempDiff = 10;
 
 // Time interval counters
 unsigned long previousMillisRead = 0;
@@ -353,7 +364,33 @@ void PrintCurrentDateTime() {
   currTime.second = 0;
 }
 
+void serialEvent3() {                                 //if the hardware serial port_3 receives a char
+  sensorstring = Serial3.readStringUntil(13);         //read the string until we see a <CR>
+  sensor_string_complete = true;                      //set the flag used to tell if we have received a completed string from the PC
+}
 
+void collectorTemp() {
+  Serial3.print('R');
+  serialEvent3();
+  if (sensor_string_complete == true) {                          //if a string from the Atlas Scientific product has been received in its entirety
+    Serial.println(sensorstring);                                //send that string to the PC's serial monitor
+    //uncomment this section to see how to convert the reading from a string to a float
+    if (isdigit(sensorstring[0]) || sensorstring[0] == '-') {    //if the first character in the string is a digit or a "-" sign
+      temperature = sensorstring.toFloat();                      //convert the string to a floating point number so it can be evaluated by the Arduino
+      if ((temperature + (tempDiff)) >= (tankTempAvg)) {                               //if the RTD temperature is greater than or equal to 25 C
+        digitalWrite(CIRC_PIN, LOW);                                  //print "high" this is demonstrating that the Arduino is evaluating the RTD temperature as a number and not as a string
+      }
+      else  {                              //if the RTD temperature is less than or equal to 24.999 C
+        digitalWrite(CIRC_PIN, HIGH);                                   //print "low" this is demonstrating that the Arduino is evaluating the RTD temperature as a number and not as a string
+      }
+    }
+
+    sensorstring = "";                                             //clear the string:
+    sensor_string_complete = false;                                //reset the flag used to tell if we have received a completed string from the Atlas Scientific product
+  }
+  Serial2.print("Status.t10.txt=\"" + String(round(temperature)) + "\xB0" + "C\"");
+  Serial3LineEnd();
+}
 /************************************************
    SYSTEM FUNCTIONS
  ***********************************************/
@@ -362,6 +399,9 @@ void setup() {
   Wire.begin();
   Serial2.begin(STARTUP_SPEED);
   SetDateTime();
+  Serial3.begin(STARTUP_SPEED);
+  inputstring.reserve(10);                            //set aside some bytes for receiving data from the PC
+  sensorstring.reserve(30);                           //set aside some bytes for receiving data from Atlas Scientific product
   pinMode(RELAY_PIN, OUTPUT); // Pump Relay pin set as output
   pinMode(SD_PIN_CS, OUTPUT); // SPI bus
   pinMode(CP_PIN_FLOW, INPUT_PULLUP); // Flow detection
@@ -378,6 +418,7 @@ void loop() {
     previousMillisRead = currentMillis;
     TempRead();
     FlowDetection();
+    collectorTemp();
   }
 
   if ((currentMillis - previousMillisCompare) >= TEMP_COMPARE_INTERVAL) {
