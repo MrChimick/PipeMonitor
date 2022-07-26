@@ -99,8 +99,8 @@ float tankTempAvg = 0.0;
 float heatReturnTempArray[TEMP_AVG_ARRAY];
 float heatReturnTempAvg = 0.0;
 
-float collectorTempArray[TEMP_AVG_ARRAY];
-float collectorTempAvg = 0.0;
+float collectorLoopArray[TEMP_AVG_ARRAY];
+float collectorLoopAvg = 0.0;
 
 float tempDiff = 10;
 
@@ -126,7 +126,7 @@ byte BcdToDec(byte val) {
   return ((val / 16 * 10) + (val % 16));
 }
 
-void Serial3LineEnd() {
+void Serial2LineEnd() {
   for (byte i = 0; i < 3; i++) Serial2.write(0xff);
 }
 
@@ -225,34 +225,34 @@ int GetMinutesBetweenDateTime(DateTime startTime, DateTime endTime) { // Assumes
 void TempRead() { //Reads temps every second, creates average, and sends values to Nextion
   tankTempArray[arrayIndex] = (TankTempSensor.readCelsius());
   heatReturnTempArray[arrayIndex] = (HeatReturnTempSensor.readCelsius());
-  collectorTempArray[arrayIndex] = (CollectorTempSensor.readCelsius());
+  collectorLoopArray[arrayIndex] = (CollectorTempSensor.readCelsius());
   tankTempAvg = 0.0;
   heatReturnTempAvg = 0.0;
-  collectorTempAvg = 0.0;
+  collectorLoopAvg = 0.0;
 
   for (byte i = 0; i < TEMP_AVG_ARRAY; i++) {
     tankTempAvg += tankTempArray[i];
     heatReturnTempAvg += heatReturnTempArray[i];
-    collectorTempAvg += collectorTempArray[i];
+    collectorLoopAvg += collectorLoopArray[i];
   }
 
   tankTempAvg /= TEMP_AVG_ARRAY;
   heatReturnTempAvg /= TEMP_AVG_ARRAY;
-  collectorTempAvg /= TEMP_AVG_ARRAY;
+  collectorLoopAvg /= TEMP_AVG_ARRAY;
 
   arrayIndex++;
   if (arrayIndex >= TEMP_AVG_ARRAY) arrayIndex = 0;
 
   Serial2.print("Status.t8.txt=\"" + String(round(tankTempAvg)) + "\xB0" + "C\"");
-  Serial3LineEnd();
+  Serial2LineEnd();
 
   Serial2.print("t9.txt=\"" + String(round(heatReturnTempAvg)) + "\xB0" + "C\"");
-  Serial3LineEnd();
+  Serial2LineEnd();
 
-  Serial2.print("t10.txt=\"" + String(round(collectorTempAvg)) + "\xB0" + "C\"");
-  Serial3LineEnd();
+  Serial2.print("t10.txt=\"" + String(round(collectorLoopAvg)) + "\xB0" + "C\"");
+  Serial2LineEnd();
 
-  Serial.println(collectorTempAvg);
+  Serial.println(collectorLoopAvg);
 
   Serial.println(tankTempAvg);
 
@@ -265,7 +265,7 @@ void TempCompare() { //Compares temps every 15mins, updates valve relay, writes,
       heatReturnFlowTracker.flowStatus = true;
       heatReturnFlowTracker.startTime = GetCurrentDateTime();
       Serial2.print("t11.bco=2016");
-      Serial3LineEnd();
+      Serial2LineEnd();
     }
   } else if (heatReturnFlowTracker.flowStatus == true) { // flow just turned off
     digitalWrite(RELAY_PIN, HIGH); // set pin 10 HIGH
@@ -273,14 +273,14 @@ void TempCompare() { //Compares temps every 15mins, updates valve relay, writes,
     SD_LogFlow(HR_LOCATION_STR, heatReturnFlowTracker);
     heatReturnFlowTracker.flowStatus = false;
     Serial2.print("t11.bco=63488");
-    Serial3LineEnd();
+    Serial2LineEnd();
   }
 }
 
 void LogAllTemperatures() {
   SD_LogTemp(BT_LOCATION_STR, tankTempAvg);
   SD_LogTemp(HR_LOCATION_STR, heatReturnTempAvg);
-  SD_LogTemp(CP_LOCATION_STR, collectorTempAvg);
+  SD_LogTemp(CP_LOCATION_STR, collectorLoopAvg);
 }
 
 void FlowDetection() {
@@ -289,14 +289,14 @@ void FlowDetection() {
       collectorFlowTracker.flowStatus = true;
       collectorFlowTracker.startTime = GetCurrentDateTime();
       Serial2.print("t12.bco=2016");
-      Serial3LineEnd();
+      Serial2LineEnd();
     }
   } else if (collectorFlowTracker.flowStatus == true) { // flow just turned off
     collectorFlowTracker.endTime = GetCurrentDateTime();
     SD_LogFlow(CP_LOCATION_STR, collectorFlowTracker);
     collectorFlowTracker.flowStatus = false;
     Serial2.print("t12.bco=63488");
-    Serial3LineEnd();
+    Serial2LineEnd();
   }
 }
 
@@ -389,7 +389,7 @@ void collectorTemp() {
     sensor_string_complete = false;                                //reset the flag used to tell if we have received a completed string from the Atlas Scientific product
   }
   Serial2.print("Status.t10.txt=\"" + String(round(temperature)) + "\xB0" + "C\"");
-  Serial3LineEnd();
+  Serial2LineEnd();
 }
 /************************************************
    SYSTEM FUNCTIONS
@@ -403,6 +403,7 @@ void setup() {
   inputstring.reserve(10);                            //set aside some bytes for receiving data from the PC
   sensorstring.reserve(30);                           //set aside some bytes for receiving data from Atlas Scientific product
   pinMode(RELAY_PIN, OUTPUT); // Pump Relay pin set as output
+   pinMode(CIRC_PIN, OUTPUT);
   pinMode(SD_PIN_CS, OUTPUT); // SPI bus
   pinMode(CP_PIN_FLOW, INPUT_PULLUP); // Flow detection
   Serial.println("Initializing");
